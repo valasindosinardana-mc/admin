@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Admin Kurs | Sinar Dana Valasindo</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0b1f3a; --paper:#f5f6f4; --panel:#fff;
+    --emerald:#0e8f7a; --emerald-dark:#0a6e5f;
+    --text:#1f2a37; --text-dim:#5b6672; --line:#e2e5e5;
+    --danger:#c0392b;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  body{ font-family:'Inter',sans-serif; background:var(--paper); color:var(--text); padding:1.5rem; }
+  h1{ font-family:'Fraunces',serif; color:var(--ink); font-size:1.4rem; }
+  .sub{ color:var(--text-dim); font-size:0.85rem; margin-top:0.3rem; }
+  .wrap{ max-width:760px; margin:0 auto; }
+
+  .card{ background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:1.3rem; margin-top:1.3rem; box-shadow:0 8px 20px -10px rgba(11,31,58,0.15); }
+
+  label{ display:block; font-size:0.75rem; font-weight:600; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-dim); margin-bottom:0.3rem; }
+  input{ width:100%; padding:0.65rem 0.7rem; border:1px solid var(--line); border-radius:7px; font-size:16px; font-family:'Inter',sans-serif; background:#fbfbfa; }
+  input:focus{ outline:2px solid var(--emerald); background:#fff; }
+
+  .row{ display:grid; grid-template-columns:1fr 1fr; gap:0.8rem; margin-top:0.8rem; }
+  .row3{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.8rem; margin-top:0.8rem; }
+  @media (max-width:520px){ .row3{ grid-template-columns:1fr 1fr; } }
+
+  .btn{ display:inline-flex; align-items:center; justify-content:center; gap:0.4rem; border:none; border-radius:7px; padding:0.7rem 1.1rem; font-weight:600; font-size:0.88rem; cursor:pointer; font-family:'Inter',sans-serif; }
+  .btn-primary{ background:var(--emerald); color:#fff; }
+  .btn-primary:hover{ background:var(--emerald-dark); }
+  .btn-ghost{ background:transparent; border:1px solid var(--line); color:var(--text); }
+  .btn-danger{ background:#fdecea; color:var(--danger); border:1px solid #f3c6c1; }
+  .btn-danger:hover{ background:#f9d5d1; }
+  .btn[disabled]{ opacity:0.5; cursor:not-allowed; }
+
+  .actions{ display:flex; gap:0.6rem; margin-top:1rem; flex-wrap:wrap; }
+
+  table{ width:100%; border-collapse:collapse; margin-top:0.6rem; font-family:'IBM Plex Mono',monospace; font-size:0.86rem; }
+  th,td{ padding:0.6rem 0.5rem; text-align:left; border-bottom:1px solid var(--line); }
+  th{ font-family:'Inter',sans-serif; font-size:0.7rem; text-transform:uppercase; color:var(--text-dim); }
+  tr.editing{ background:#eefaf6; }
+  .row-actions{ display:flex; gap:0.4rem; }
+  .row-actions button{ font-family:'Inter',sans-serif; font-size:0.75rem; padding:0.35rem 0.6rem; border-radius:6px; border:1px solid var(--line); background:#fff; cursor:pointer; }
+  .row-actions button.del{ color:var(--danger); border-color:#f3c6c1; }
+
+  .status{ margin-top:0.8rem; font-size:0.85rem; font-family:'IBM Plex Mono',monospace; }
+  .status.ok{ color:var(--emerald-dark); }
+  .status.err{ color:var(--danger); }
+
+  .config-note{ font-size:0.78rem; color:var(--text-dim); margin-top:0.4rem; }
+  code{ background:#eef0ef; padding:0.1rem 0.35rem; border-radius:4px; font-size:0.82em; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Admin Kurs — Sinar Dana Valasindo</h1>
+  <p class="sub">Tambah, ubah, atau hapus kurs mata uang. Perubahan langsung tersimpan ke Google Sheet dan otomatis muncul di website publik.</p>
+
+  <!-- Konfigurasi -->
+  <div class="card">
+    <label for="api-url">API URL (dari deploy Apps Script)</label>
+    <input id="api-url" type="text" placeholder="https://script.google.com/macros/s/XXXXX/exec">
+    <label for="secret" style="margin-top:0.7rem;">Password Admin</label>
+    <input id="secret" type="password" placeholder="Sama seperti ADMIN_SECRET di Script Properties">
+    <div class="actions">
+      <button class="btn btn-primary" onclick="saveConfigAndLoad()">Simpan &amp; Muat Data</button>
+    </div>
+    <p class="config-note">URL &amp; password disimpan hanya di browser ini (localStorage), tidak dikirim ke mana-mana selain API kamu sendiri.</p>
+  </div>
+
+  <!-- Form tambah/ubah -->
+  <div class="card">
+    <h3 id="form-title" style="font-family:'Fraunces',serif; font-size:1.05rem; color:var(--ink);">Tambah Mata Uang Baru</h3>
+    <div class="row3">
+      <div>
+        <label for="f-code">Kode</label>
+        <input id="f-code" type="text" placeholder="misal SGD" maxlength="6" style="text-transform:uppercase;">
+      </div>
+      <div>
+        <label for="f-jual">Jual</label>
+        <input id="f-jual" type="number" step="any" placeholder="13850">
+      </div>
+      <div>
+        <label for="f-beli">Beli</label>
+        <input id="f-beli" type="number" step="any" placeholder="14030">
+      </div>
+    </div>
+    <div style="margin-top:0.8rem;">
+      <label for="f-name">Nama Mata Uang</label>
+      <input id="f-name" type="text" placeholder="misal Singapore Dollar">
+    </div>
+    <div class="actions">
+      <button class="btn btn-primary" id="save-btn" onclick="submitForm()">Simpan</button>
+      <button class="btn btn-ghost" id="cancel-btn" onclick="resetForm()" style="display:none;">Batal Edit</button>
+    </div>
+    <div class="status" id="status"></div>
+  </div>
+
+  <!-- Daftar kurs -->
+  <div class="card">
+    <h3 style="font-family:'Fraunces',serif; font-size:1.05rem; color:var(--ink);">Daftar Kurs Saat Ini</h3>
+    <table>
+      <thead>
+        <tr><th>Kode</th><th>Nama</th><th>Jual</th><th>Beli</th><th></th></tr>
+      </thead>
+      <tbody id="rates-body">
+        <tr><td colspan="5" style="color:var(--text-dim);">Belum ada data. Isi API URL &amp; password di atas dulu.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  let API_URL = localStorage.getItem('sdv_api_url') || '';
+  let SECRET = localStorage.getItem('sdv_secret') || '';
+  let editingCode = null;
+
+  document.getElementById('api-url').value = API_URL;
+  document.getElementById('secret').value = SECRET;
+
+  function saveConfigAndLoad(){
+    API_URL = document.getElementById('api-url').value.trim();
+    SECRET = document.getElementById('secret').value;
+    localStorage.setItem('sdv_api_url', API_URL);
+    localStorage.setItem('sdv_secret', SECRET);
+    loadRates();
+  }
+
+  function setStatus(msg, isError){
+    const el = document.getElementById('status');
+    el.textContent = msg;
+    el.className = 'status ' + (isError ? 'err' : 'ok');
+  }
+
+  async function loadRates(){
+    if (!API_URL){ setStatus('Isi API URL dulu.', true); return; }
+    setStatus('Memuat data...', false);
+    try {
+      const res = await fetch(API_URL + '?action=list');
+      const data = await res.json();
+      if (data.error){ setStatus(data.error, true); return; }
+      renderTable(data.rates || []);
+      setStatus('Data dimuat (' + (data.rates || []).length + ' mata uang).', false);
+    } catch (err) {
+      setStatus('Gagal memuat: ' + err.message, true);
+    }
+  }
+
+  function renderTable(rates){
+    const body = document.getElementById('rates-body');
+    if (!rates.length){
+      body.innerHTML = '<tr><td colspan="5" style="color:var(--text-dim);">Belum ada data.</td></tr>';
+      return;
+    }
+    body.innerHTML = rates.map(function(r){
+      return '<tr>' +
+        '<td><strong>' + r.code + '</strong></td>' +
+        '<td>' + r.name + '</td>' +
+        '<td>' + Number(r.jual).toLocaleString('id-ID') + '</td>' +
+        '<td>' + Number(r.beli).toLocaleString('id-ID') + '</td>' +
+        '<td class="row-actions">' +
+          '<button onclick="editRow(\'' + r.code + '\',\'' + (r.name || '').replace(/'/g,"\\'") + '\',' + r.jual + ',' + r.beli + ')">Edit</button>' +
+          '<button class="del" onclick="deleteRow(\'' + r.code + '\')">Hapus</button>' +
+        '</td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  function editRow(code, name, jual, beli){
+    editingCode = code;
+    document.getElementById('form-title').textContent = 'Ubah Kurs: ' + code;
+    document.getElementById('f-code').value = code;
+    document.getElementById('f-code').disabled = true;
+    document.getElementById('f-name').value = name;
+    document.getElementById('f-jual').value = jual;
+    document.getElementById('f-beli').value = beli;
+    document.getElementById('cancel-btn').style.display = 'inline-flex';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function resetForm(){
+    editingCode = null;
+    document.getElementById('form-title').textContent = 'Tambah Mata Uang Baru';
+    document.getElementById('f-code').value = '';
+    document.getElementById('f-code').disabled = false;
+    document.getElementById('f-name').value = '';
+    document.getElementById('f-jual').value = '';
+    document.getElementById('f-beli').value = '';
+    document.getElementById('cancel-btn').style.display = 'none';
+  }
+
+  async function submitForm(){
+    if (!API_URL || !SECRET){ setStatus('Isi API URL & password dulu.', true); return; }
+    const code = document.getElementById('f-code').value.trim().toUpperCase();
+    const name = document.getElementById('f-name').value.trim();
+    const jual = document.getElementById('f-jual').value;
+    const beli = document.getElementById('f-beli').value;
+    if (!code || !name || jual === '' || beli === ''){ setStatus('Semua kolom wajib diisi.', true); return; }
+
+    const action = editingCode ? 'update' : 'create';
+    const btn = document.getElementById('save-btn');
+    btn.disabled = true;
+    setStatus('Menyimpan...', false);
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action, code, name, jual, beli, secret: SECRET })
+      });
+      const data = await res.json();
+      if (data.error){ setStatus(data.error, true); btn.disabled = false; return; }
+      setStatus('Tersimpan.', false);
+      resetForm();
+      loadRates();
+    } catch (err) {
+      setStatus('Gagal menyimpan: ' + err.message, true);
+    }
+    btn.disabled = false;
+  }
+
+  async function deleteRow(code){
+    if (!confirm('Hapus kurs ' + code + '?')) return;
+    setStatus('Menghapus...', false);
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'delete', code, secret: SECRET })
+      });
+      const data = await res.json();
+      if (data.error){ setStatus(data.error, true); return; }
+      setStatus('Dihapus.', false);
+      loadRates();
+    } catch (err) {
+      setStatus('Gagal menghapus: ' + err.message, true);
+    }
+  }
+
+  if (API_URL) loadRates();
+</script>
+</body>
+</html>
